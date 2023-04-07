@@ -1,8 +1,7 @@
 import numpy as np
-
+from gym.envs.mujoco import mujoco_env
 from gym import utils
-from gym.envs.mujoco import MuJocoPyEnv
-from gym.spaces import Box
+
 
 DEFAULT_CAMERA_CONFIG = {
     "trackbodyid": 2,
@@ -12,16 +11,7 @@ DEFAULT_CAMERA_CONFIG = {
 }
 
 
-class Walker2dEnv(MuJocoPyEnv, utils.EzPickle):
-    metadata = {
-        "render_modes": [
-            "human",
-            "rgb_array",
-            "depth_array",
-        ],
-        "render_fps": 125,
-    }
-
+class Walker2dEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(
         self,
         xml_file="walker2d.xml",
@@ -33,21 +23,8 @@ class Walker2dEnv(MuJocoPyEnv, utils.EzPickle):
         healthy_angle_range=(-1.0, 1.0),
         reset_noise_scale=5e-3,
         exclude_current_positions_from_observation=True,
-        **kwargs
     ):
-        utils.EzPickle.__init__(
-            self,
-            xml_file,
-            forward_reward_weight,
-            ctrl_cost_weight,
-            healthy_reward,
-            terminate_when_unhealthy,
-            healthy_z_range,
-            healthy_angle_range,
-            reset_noise_scale,
-            exclude_current_positions_from_observation,
-            **kwargs
-        )
+        utils.EzPickle.__init__(**locals())
 
         self._forward_reward_weight = forward_reward_weight
         self._ctrl_cost_weight = ctrl_cost_weight
@@ -64,18 +41,7 @@ class Walker2dEnv(MuJocoPyEnv, utils.EzPickle):
             exclude_current_positions_from_observation
         )
 
-        if exclude_current_positions_from_observation:
-            observation_space = Box(
-                low=-np.inf, high=np.inf, shape=(17,), dtype=np.float64
-            )
-        else:
-            observation_space = Box(
-                low=-np.inf, high=np.inf, shape=(18,), dtype=np.float64
-            )
-
-        MuJocoPyEnv.__init__(
-            self, xml_file, 4, observation_space=observation_space, **kwargs
-        )
+        mujoco_env.MujocoEnv.__init__(self, xml_file, 4)
 
     @property
     def healthy_reward(self):
@@ -102,9 +68,9 @@ class Walker2dEnv(MuJocoPyEnv, utils.EzPickle):
         return is_healthy
 
     @property
-    def terminated(self):
-        terminated = not self.is_healthy if self._terminate_when_unhealthy else False
-        return terminated
+    def done(self):
+        done = not self.is_healthy if self._terminate_when_unhealthy else False
+        return done
 
     def _get_obs(self):
         position = self.sim.data.qpos.flat.copy()
@@ -123,6 +89,7 @@ class Walker2dEnv(MuJocoPyEnv, utils.EzPickle):
         x_velocity = (x_position_after - x_position_before) / self.dt
 
         ctrl_cost = self.control_cost(action)
+
         forward_reward = self._forward_reward_weight * x_velocity
         healthy_reward = self.healthy_reward
 
@@ -131,16 +98,13 @@ class Walker2dEnv(MuJocoPyEnv, utils.EzPickle):
 
         observation = self._get_obs()
         reward = rewards - costs
-        terminated = self.terminated
+        done = self.done
         info = {
             "x_position": x_position_after,
             "x_velocity": x_velocity,
         }
 
-        if self.render_mode == "human":
-            self.render()
-
-        return observation, reward, terminated, False, info
+        return observation, reward, done, info
 
     def reset_model(self):
         noise_low = -self._reset_noise_scale
@@ -159,7 +123,6 @@ class Walker2dEnv(MuJocoPyEnv, utils.EzPickle):
         return observation
 
     def viewer_setup(self):
-        assert self.viewer is not None
         for key, value in DEFAULT_CAMERA_CONFIG.items():
             if isinstance(value, np.ndarray):
                 getattr(self.viewer.cam, key)[:] = value

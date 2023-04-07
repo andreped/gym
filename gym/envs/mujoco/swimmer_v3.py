@@ -1,24 +1,12 @@
-__credits__ = ["Rushiv Arora"]
-
 import numpy as np
-
+from gym.envs.mujoco import mujoco_env
 from gym import utils
-from gym.envs.mujoco import MuJocoPyEnv
-from gym.spaces import Box
+
 
 DEFAULT_CAMERA_CONFIG = {}
 
 
-class SwimmerEnv(MuJocoPyEnv, utils.EzPickle):
-    metadata = {
-        "render_modes": [
-            "human",
-            "rgb_array",
-            "depth_array",
-        ],
-        "render_fps": 25,
-    }
-
+class SwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(
         self,
         xml_file="swimmer.xml",
@@ -26,17 +14,8 @@ class SwimmerEnv(MuJocoPyEnv, utils.EzPickle):
         ctrl_cost_weight=1e-4,
         reset_noise_scale=0.1,
         exclude_current_positions_from_observation=True,
-        **kwargs
     ):
-        utils.EzPickle.__init__(
-            self,
-            xml_file,
-            forward_reward_weight,
-            ctrl_cost_weight,
-            reset_noise_scale,
-            exclude_current_positions_from_observation,
-            **kwargs
-        )
+        utils.EzPickle.__init__(**locals())
 
         self._forward_reward_weight = forward_reward_weight
         self._ctrl_cost_weight = ctrl_cost_weight
@@ -47,18 +26,7 @@ class SwimmerEnv(MuJocoPyEnv, utils.EzPickle):
             exclude_current_positions_from_observation
         )
 
-        if exclude_current_positions_from_observation:
-            observation_space = Box(
-                low=-np.inf, high=np.inf, shape=(8,), dtype=np.float64
-            )
-        else:
-            observation_space = Box(
-                low=-np.inf, high=np.inf, shape=(10,), dtype=np.float64
-            )
-
-        MuJocoPyEnv.__init__(
-            self, xml_file, 4, observation_space=observation_space, **kwargs
-        )
+        mujoco_env.MujocoEnv.__init__(self, xml_file, 4)
 
     def control_cost(self, action):
         control_cost = self._ctrl_cost_weight * np.sum(np.square(action))
@@ -73,10 +41,12 @@ class SwimmerEnv(MuJocoPyEnv, utils.EzPickle):
         x_velocity, y_velocity = xy_velocity
 
         forward_reward = self._forward_reward_weight * x_velocity
+
         ctrl_cost = self.control_cost(action)
 
         observation = self._get_obs()
         reward = forward_reward - ctrl_cost
+        done = False
         info = {
             "reward_fwd": forward_reward,
             "reward_ctrl": -ctrl_cost,
@@ -88,10 +58,7 @@ class SwimmerEnv(MuJocoPyEnv, utils.EzPickle):
             "forward_reward": forward_reward,
         }
 
-        if self.render_mode == "human":
-            self.render()
-
-        return observation, reward, False, False, info
+        return observation, reward, done, info
 
     def _get_obs(self):
         position = self.sim.data.qpos.flat.copy()
@@ -120,7 +87,6 @@ class SwimmerEnv(MuJocoPyEnv, utils.EzPickle):
         return observation
 
     def viewer_setup(self):
-        assert self.viewer is not None
         for key, value in DEFAULT_CAMERA_CONFIG.items():
             if isinstance(value, np.ndarray):
                 getattr(self.viewer.cam, key)[:] = value

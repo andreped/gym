@@ -1,32 +1,12 @@
+from gym.envs.mujoco import mujoco_env
+from gym import utils
 import numpy as np
 
-from gym import utils
-from gym.envs.mujoco import MuJocoPyEnv
-from gym.spaces import Box
 
-
-class HumanoidStandupEnv(MuJocoPyEnv, utils.EzPickle):
-    metadata = {
-        "render_modes": [
-            "human",
-            "rgb_array",
-            "depth_array",
-        ],
-        "render_fps": 67,
-    }
-
-    def __init__(self, **kwargs):
-        observation_space = Box(
-            low=-np.inf, high=np.inf, shape=(376,), dtype=np.float64
-        )
-        MuJocoPyEnv.__init__(
-            self,
-            "humanoidstandup.xml",
-            5,
-            observation_space=observation_space,
-            **kwargs
-        )
-        utils.EzPickle.__init__(self, **kwargs)
+class HumanoidStandupEnv(mujoco_env.MujocoEnv, utils.EzPickle):
+    def __init__(self):
+        mujoco_env.MujocoEnv.__init__(self, "humanoidstandup.xml", 5)
+        utils.EzPickle.__init__(self)
 
     def _get_obs(self):
         data = self.sim.data
@@ -52,13 +32,11 @@ class HumanoidStandupEnv(MuJocoPyEnv, utils.EzPickle):
         quad_impact_cost = min(quad_impact_cost, 10)
         reward = uph_cost - quad_ctrl_cost - quad_impact_cost + 1
 
-        if self.render_mode == "human":
-            self.render()
+        done = bool(False)
         return (
             self._get_obs(),
             reward,
-            False,
-            False,
+            done,
             dict(
                 reward_linup=uph_cost,
                 reward_quadctrl=-quad_ctrl_cost,
@@ -80,7 +58,6 @@ class HumanoidStandupEnv(MuJocoPyEnv, utils.EzPickle):
         return self._get_obs()
 
     def viewer_setup(self):
-        assert self.viewer is not None
         self.viewer.cam.trackbodyid = 1
         self.viewer.cam.distance = self.model.stat.extent * 1.0
         self.viewer.cam.lookat[2] = 0.8925
