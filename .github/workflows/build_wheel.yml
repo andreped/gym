@@ -45,7 +45,7 @@ jobs:
           name: "Python wheel"
 
       - name: Install wheel
-        run: pip install --find-links=${{github.workspace}} --no-index gym
+        run: pip install gym-0.21.0-py3-none-any.whl
 
       - name: Test library accessibility
         run: python -c "import gym"
