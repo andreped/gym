@@ -47,8 +47,8 @@ setup(
     packages=[package for package in find_packages() if package.startswith("gym")],
     zip_safe=False,
     install_requires=[
-        "numpy", #"numpy>=1.18.0",
-        "cloudpickle", #"cloudpickle>=1.2.0",
+        "numpy>=1.18.0",
+        "cloudpickle>=1.2.0",
         "importlib_metadata==4.13.0; python_version < '3.8'",
     ],
     extras_require=extras,
