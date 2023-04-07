@@ -28,7 +28,6 @@ extras["nomujoco"] = list(
     itertools.chain.from_iterable(map(lambda group: extras[group], nomujoco_groups))
 )
 
-
 all_blacklist = set(["accept-rom-license"])
 all_groups = set(extras.keys()) - all_blacklist
 
@@ -49,7 +48,7 @@ setup(
     install_requires=[
         "numpy>=1.18.0",
         "cloudpickle>=1.2.0",
-        "importlib_metadata>=4.8.1; python_version < '3.8'",
+        "importlib_metadata==4.13.0; python_version < '3.8'",
     ],
     extras_require=extras,
     package_data={
